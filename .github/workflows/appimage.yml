@@ -89,7 +89,9 @@ jobs:
             --desktop-file AppDir/usr/share/applications/rns510.desktop \
             --icon-file AppDir/usr/share/icons/hicolor/scalable/apps/rns510.svg \
             --output appimage
-          mv RNS510*.AppImage RNS510-Toolkit-x86_64.AppImage
+          APPIMAGE=$(find . -maxdepth 1 -type f -name "*.AppImage" ! -name "linuxdeploy-x86_64.AppImage" -print -quit)
+          test -n "$APPIMAGE"
+          mv "$APPIMAGE" RNS510-Toolkit-x86_64.AppImage
           chmod +x RNS510-Toolkit-x86_64.AppImage
 
       - name: Upload AppImage artifact
