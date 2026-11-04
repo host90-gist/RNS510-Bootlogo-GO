@@ -1,0 +1,102 @@
+name: Linux x86-64 AppImage
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, go-rewrite]
+
+permissions:
+  contents: write
+
+jobs:
+  appimage:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config xorg-dev libgl1-mesa-dev xorriso file wget fuse
+
+      - name: Test Go packages
+        run: go test ./...
+
+      - name: Build application binaries
+        env:
+          CGO_ENABLED: 1
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          mkdir -p dist AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
+          go build -trimpath -ldflags="-s -w" -o dist/rns510 ./cmd/rns510
+          go build -trimpath -ldflags="-s -w" -o AppDir/usr/bin/rns510-gui ./cmd/rns510-gui
+          install -m 0755 dist/rns510 AppDir/usr/bin/rns510
+          install -m 0755 "$(command -v xorriso)" AppDir/usr/bin/xorriso
+          cp -a template_swl AppDir/usr/share/rns510-template-placeholder
+          mkdir -p AppDir/usr/share/rns510
+          mv AppDir/usr/share/rns510-template-placeholder AppDir/usr/share/rns510/template_swl
+
+      - name: Create desktop entry and icon
+        run: |
+          cat > AppDir/usr/share/applications/rns510.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=RNS 510 Bootlogo Toolkit
+          Comment=Create and inspect RNS 510 bootlogo files and SWL ISO images
+          Exec=rns510-gui
+          Icon=rns510
+          Categories=Utility;Graphics;
+          Terminal=false
+          EOF
+          cat > AppDir/usr/share/icons/hicolor/scalable/apps/rns510.svg <<'EOF'
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+            <rect x="8" y="8" width="112" height="112" rx="22" fill="#202938"/>
+            <path d="M26 37h76v54H26z" fill="#e9eef5" stroke="#72b7ff" stroke-width="5"/>
+            <path d="M35 76l17-18 13 12 12-15 16 21" fill="none" stroke="#2376c9" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="91" cy="48" r="6" fill="#2376c9"/>
+          </svg>
+          EOF
+
+      - name: Download linuxdeploy
+        run: |
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+
+      - name: Build AppImage
+        env:
+          ARCH: x86_64
+        run: |
+          ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run \
+            --appdir AppDir \
+            --executable AppDir/usr/bin/rns510-gui \
+            --executable AppDir/usr/bin/rns510 \
+            --executable AppDir/usr/bin/xorriso \
+            --desktop-file AppDir/usr/share/applications/rns510.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/scalable/apps/rns510.svg \
+            --output appimage
+          mv RNS510*.AppImage RNS510-Toolkit-x86_64.AppImage
+          chmod +x RNS510-Toolkit-x86_64.AppImage
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RNS510-Toolkit-x86_64-AppImage
+          path: RNS510-Toolkit-x86_64.AppImage
+          if-no-files-found: error
+
+      - name: Attach AppImage to tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: RNS510-Toolkit-x86_64.AppImage
