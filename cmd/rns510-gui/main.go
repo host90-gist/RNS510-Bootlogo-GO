@@ -52,7 +52,7 @@ func main() {
 	buildISO := widget.NewButton("Build bootable ISO…", func() {
 		if selected == "" { status.SetText("Choose an image first."); return }
 		img, err := loadImage(selected); if err != nil { status.SetText(err.Error()); return }
-		mode := "pad"; if fit.SelectedIndex() == 1 { mode = "stretch" }
+		mode := "pad"; if fit.Selected == "Stretch to 800 × 480" { mode = "stretch" }
 		template := locateTemplate()
 		if template == "" { status.SetText("SWL template folder not found. Place template_swl beside the application."); return }
 		dialog.NewFileSave(func(out fyne.URIWriteCloser, err error) {
@@ -68,7 +68,6 @@ func main() {
 		container.NewHBox(choose, preview),
 		widget.NewForm(widget.NewFormItem("Image scaling",fit)),
 		container.NewHBox(buildFLI,buildISO),
-		widget.NewSeparator(),
 		status,
 	)
 	w.SetContent(container.NewPadded(content))
