@@ -24,7 +24,7 @@ func main() {
 	w.Resize(fyne.NewSize(720, 420))
 	status := widget.NewLabel("Choose an image to create a LOGO.FLI or bootable SWL ISO.")
 	fit := widget.NewSelect([]string{"Preserve aspect ratio (black bars)", "Stretch to 800 × 480"}, nil)
-	fit.SetSelectedIndex(0)
+	fit.SetSelected("Preserve aspect ratio (black bars)")
 	var selected string
 	var preview *widget.Label
 	preview = widget.NewLabel("No image selected")
@@ -41,7 +41,7 @@ func main() {
 	buildFLI := widget.NewButton("Export LOGO.FLI", func() {
 		if selected == "" { status.SetText("Choose an image first."); return }
 		img, err := loadImage(selected); if err != nil { status.SetText(err.Error()); return }
-		mode := "pad"; if fit.SelectedIndex() == 1 { mode = "stretch" }
+		mode := "pad"; if fit.Selected == "Stretch to 800 × 480" { mode = "stretch" }
 		data, err := fli.Encode(img,mode,true); if err != nil { status.SetText(err.Error()); return }
 		dialog.NewFileSave(func(out fyne.URIWriteCloser, err error) {
 			if err != nil { status.SetText(err.Error()); return }; if out == nil { return }
